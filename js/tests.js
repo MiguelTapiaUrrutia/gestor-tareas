@@ -7,7 +7,10 @@
    y también en Node: `node js/tests.js` (sale con código 1 si falla).
    ============================================================ */
 
-import { visibleTasks, isOverdue, fmtDue, todayISO, cmpDue, cmpPriority, cmpCreated, cmpAlpha } from './logica.js';
+import {
+  visibleTasks, isOverdue, fmtDue, todayISO, cmpDue, cmpPriority, cmpCreated, cmpAlpha,
+  canDrag, reassignProject, isDuplicateProjectName,
+} from './logica.js';
 import { migrateTasks, ensureGeneral, GENERAL_ID } from './storage.js';
 
 /* ---------- Mini framework de aserciones ---------- */
@@ -178,6 +181,68 @@ test('combinación: completadas + búsqueda + orden alfabético', () => {
   const b = tarea({ text: 'ánimo al equipo', done: true });
   const c = tarea({ text: 'Avena', done: false }); // fuera: pendiente
   assertEq(ids(visibleTasks([a, b, c], 'completadas', 'a', 'alpha')), [b.id, a.id]);
+});
+
+/* ============================================================
+   PROYECTOS — visibleTasks, reasignación, canDrag, duplicados
+   ============================================================ */
+test('visibleTasks: filtra por projectId', () => {
+  const a = tarea({ projectId: 'sence' });
+  const b = tarea({ projectId: GENERAL_ID });
+  const c = tarea({ projectId: 'sence' });
+  assertEq(ids(visibleTasks([a, b, c], 'todas', '', 'manual', 'sence')), [a.id, c.id]);
+});
+
+test('visibleTasks: con "todos" no filtra por proyecto', () => {
+  const ts = [tarea({ projectId: 'sence' }), tarea({ projectId: GENERAL_ID })];
+  assertEq(visibleTasks(ts, 'todas', '', 'manual', 'todos').length, 2);
+});
+
+test('visibleTasks: sin el 5º parámetro se comporta como "todos" (compatibilidad)', () => {
+  const ts = [tarea({ projectId: 'sence' }), tarea({ projectId: GENERAL_ID })];
+  assertEq(visibleTasks(ts, 'todas', '', 'manual').length, 2);
+});
+
+test('combinación: proyecto + pendientes + búsqueda + orden por vencimiento', () => {
+  const a = tarea({ text: 'Informe final', projectId: 'sence', due: '2026-06-20' });
+  const b = tarea({ text: 'Informe parcial', projectId: 'sence', due: '2026-06-12' });
+  const c = tarea({ text: 'Informe ajeno', projectId: GENERAL_ID, due: '2026-06-01' }); // fuera: otro proyecto
+  const d = tarea({ text: 'Informe hecho', projectId: 'sence', done: true });           // fuera: completada
+  const e = tarea({ text: 'Comprar café', projectId: 'sence' });                        // fuera: no coincide
+  assertEq(ids(visibleTasks([a, b, c, d, e], 'pendientes', 'informe', 'due', 'sence')), [b.id, a.id]);
+});
+
+test('reassignProject: las tareas del proyecto eliminado pasan al destino', () => {
+  const a = tarea({ projectId: 'sence' });
+  const b = tarea({ projectId: GENERAL_ID });
+  const res = reassignProject([a, b], 'sence', GENERAL_ID);
+  assertEq(res.map(t => t.projectId), [GENERAL_ID, GENERAL_ID]);
+});
+
+test('reassignProject: las demás tareas no se tocan y no muta el original', () => {
+  const a = tarea({ projectId: 'sence' });
+  const b = tarea({ projectId: 'otro' });
+  const res = reassignProject([a, b], 'sence', GENERAL_ID);
+  assert(res[1] === b, 'la tarea de otro proyecto debería ser el mismo objeto');
+  assertEq(a.projectId, 'sence', 'la tarea original fue mutada');
+});
+
+test('canDrag: false en la vista "todos" aunque sea manual sin filtros', () => {
+  assert(!canDrag('todas', '', 'manual', 'todos'));
+});
+
+test('canDrag: true en proyecto específico con manual, filtro "todas" y sin búsqueda', () => {
+  assert(canDrag('todas', '', 'manual', 'sence'));
+  assert(!canDrag('pendientes', '', 'manual', 'sence'));
+  assert(!canDrag('todas', 'caf', 'manual', 'sence'));
+  assert(!canDrag('todas', '', 'due', 'sence'));
+});
+
+test('nombre duplicado: detecta ignorando tildes, mayúsculas y espacios', () => {
+  const projects = [{ id: 'x', nombre: 'Currículum', color: '#1C7ED6' }];
+  assert(isDuplicateProjectName(projects, '  curriculum '));
+  assert(isDuplicateProjectName(projects, 'CURRÍCULUM'));
+  assert(!isDuplicateProjectName(projects, 'Currículum 2'));
 });
 
 /* ============================================================

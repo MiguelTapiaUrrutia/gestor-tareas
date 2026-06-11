@@ -19,9 +19,32 @@ export function isOverdue(t, hoy = todayISO()) {
   return Boolean(t.due && !t.done && t.due < hoy);
 }
 
-// ¿Se puede arrastrar para reordenar? Sólo en modo manual sin filtros ni búsqueda.
-export function canDrag(filter, query, sortBy) {
-  return sortBy === 'manual' && filter === 'todas' && query.trim() === '';
+// ¿Se puede arrastrar para reordenar? Sólo en modo manual, sin filtros ni
+// búsqueda y dentro de un proyecto específico: en la vista "todos" un mismo
+// movimiento mezclaría los órdenes manuales de proyectos distintos.
+export function canDrag(filter, query, sortBy, projectId) {
+  return sortBy === 'manual' && filter === 'todas' && query.trim() === '' && projectId !== 'todos';
+}
+
+/* ---------- Proyectos ---------- */
+
+// Reasigna a `destino` las tareas del proyecto eliminado.
+// Devuelve un array nuevo; las demás tareas se conservan tal cual.
+export function reassignProject(tasks, projectId, destino) {
+  return tasks.map(t => (t.projectId === projectId ? { ...t, projectId: destino } : t));
+}
+
+// Normalización para comparar nombres: sin espacios extremos,
+// sin mayúsculas y sin tildes ('  Currículum ' ≡ 'curriculum').
+// El rango del regex son los diacríticos combinantes U+0300–U+036F
+// (caracteres literales) que NFD separa de la letra base.
+export function normalizeName(s) {
+  return s.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+export function isDuplicateProjectName(projects, nombre) {
+  const n = normalizeName(nombre);
+  return projects.some(p => normalizeName(p.nombre) === n);
 }
 
 /* ---------- Comparadores de orden ---------- */
@@ -48,11 +71,13 @@ export function cmpAlpha(a, b) {
 
 /* ---------- Filtro + búsqueda + orden ---------- */
 
-// Devuelve un array NUEVO con las tareas visibles según filtro de
-// estado, texto de búsqueda y criterio de orden. 'manual' (o cualquier
+// Devuelve un array NUEVO con las tareas visibles según proyecto, filtro
+// de estado, texto de búsqueda y criterio de orden. 'manual' (o cualquier
 // valor desconocido) conserva el orden original del array.
-export function visibleTasks(tasks, filter, query, sortBy) {
+export function visibleTasks(tasks, filter, query, sortBy, projectId = 'todos') {
   let data = tasks.slice();
+  // Proyecto (antes que el resto; 'todos' no filtra)
+  if (projectId !== 'todos') data = data.filter(t => t.projectId === projectId);
   // Filtro de estado
   if (filter === 'pendientes') data = data.filter(t => !t.done);
   else if (filter === 'completadas') data = data.filter(t => t.done);

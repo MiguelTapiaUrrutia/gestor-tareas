@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tests — Mis Tareas</title>
+<style>
+  body { font-family: 'Space Mono', ui-monospace, monospace; background: #f4f1ea; color: #1c1c1c; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { font-size: 1.4rem; border-bottom: 4px solid #1c1c1c; padding-bottom: .5rem; }
+  #resumen { font-weight: bold; font-size: 1.1rem; padding: .6rem 1rem; border: 3px solid #1c1c1c; display: inline-block; margin-bottom: 1rem; }
+  #resumen.ok { background: #b6f2c5; }
+  #resumen.ko { background: #f2b6b6; }
+  ul { list-style: none; padding: 0; }
+  li { padding: .45rem .8rem; border: 2px solid #1c1c1c; margin-bottom: .4rem; }
+  li.pass { background: #dcf7e3; }
+  li.fail { background: #f7dcdc; }
+  p.nota { font-size: .85rem; color: #555; }
+</style>
+</head>
+<body>
+  <h1>Tests de caracterización — js/logica.js</h1>
+  <div id="resumen">Ejecutando…</div>
+  <ul id="resultados"></ul>
+  <p class="nota">Los módulos ES no cargan con <code>file://</code> — sirve la carpeta con un
+  servidor local (p. ej. <code>python -m http.server</code>) y abre
+  <code>http://localhost:8000/tests.html</code>.</p>
+  <script type="module" src="js/tests.js"></script>
+</body>
+</html>

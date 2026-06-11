@@ -182,11 +182,10 @@ function syncFilters() {
 initModal(id => removeTask(id));
 
 /* ---------- Tema ---------- */
-// OJO: lectura inconsistente heredada del monolito (mezcla crudo y
-// JSON.parse). Se conserva tal cual en la Fase 2; se arregla en la Fase 3b.
-let theme = localStorage.getItem(LS.theme);
+// Una sola vía de lectura: load() (JSON + try/catch), simétrica con el
+// save() que usa applyTheme. Sin tema guardado, manda la preferencia del SO.
+let theme = load(LS.theme, null);
 if (!theme) theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-else theme = JSON.parse(theme);
 $('#themeBtn').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 
 /* ---------- Navegación de vistas ---------- */

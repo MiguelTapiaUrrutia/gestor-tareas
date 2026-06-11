@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mis Tareas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+
+    <!-- ============ CABECERA ============ -->
+    <header class="topbar parallax" data-speed="0.015">
+      <div class="brand">
+        <div class="brand__mark">✓</div>
+        <div>
+          <div class="brand__title">Mis Tareas</div>
+          <div class="brand__sub">Gestor personal</div>
+        </div>
+      </div>
+      <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema"></button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square"><circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>
+        <span>Ajustes</span>
+      </button>
+      <a href="#" class="avatar" id="avatarBtn" aria-label="Ir a ajustes de perfil"></a>
+    </header>
+
+    <!-- ============ VISTA: TAREAS ============ -->
+    <main class="view is-active" data-view="tareas">
+
+      <section class="section-head parallax" data-speed="0.02">
+        <h2>Hola<span id="greetName"></span></h2>
+        <p>Organiza tu día, una tarea a la vez.</p>
+      </section>
+
+      <!-- Crear tarea -->
+      <form class="panel creator parallax" id="creatorForm" data-speed="0.03" autocomplete="off">
+        <div class="creator__row">
+          <input class="field" id="newTask" type="text" placeholder="¿Qué necesitas hacer?" aria-label="Nueva tarea" maxlength="160">
+          <button type="submit" class="btn btn--primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="square"><path d="M12 5v14M5 12h14"/></svg>
+            Agregar
+          </button>
+        </div>
+        <div class="creator__opts">
+          <div class="opt">
+            <label class="label" for="newPrio">Prioridad</label>
+            <div class="select-wrap">
+              <select class="field field--sm" id="newPrio">
+                <option value="alta">Alta</option>
+                <option value="media" selected>Media</option>
+                <option value="baja">Baja</option>
+              </select>
+            </div>
+          </div>
+          <div class="opt">
+            <label class="label" for="newDue">Fecha de vencimiento</label>
+            <input class="field field--sm" id="newDue" type="date" aria-label="Fecha de vencimiento">
+          </div>
+        </div>
+      </form>
+
+      <!-- Búsqueda -->
+      <div class="searchbar parallax" id="searchbar" data-speed="0.022">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+        <input class="field" id="search" type="text" placeholder="Buscar tareas…" aria-label="Buscar tareas">
+        <button class="searchbar__clear" id="searchClear" type="button" aria-label="Limpiar búsqueda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <!-- Filtros + orden + contador -->
+      <div class="toolbar parallax" data-speed="0.025">
+        <div class="filters" role="group" aria-label="Filtrar tareas">
+          <button class="chip" data-filter="todas">Todas <span class="chip__count" id="cTodas">0</span></button>
+          <button class="chip" data-filter="pendientes">Pendientes <span class="chip__count" id="cPend">0</span></button>
+          <button class="chip" data-filter="completadas">Completadas <span class="chip__count" id="cDone">0</span></button>
+        </div>
+        <div class="toolbar__end">
+          <div class="sort-wrap">
+            <label class="label" for="sort">Ordenar</label>
+            <div class="select-wrap">
+              <select class="field" id="sort">
+                <option value="manual">Manual (arrastrar)</option>
+                <option value="due">Vencimiento</option>
+                <option value="priority">Prioridad</option>
+                <option value="created">Más recientes</option>
+                <option value="alpha">A–Z</option>
+              </select>
+            </div>
+          </div>
+          <div class="counter" id="counter"></div>
+        </div>
+      </div>
+
+      <!-- Lista -->
+      <ul class="list" id="list"></ul>
+
+      <!-- Estado vacío -->
+      <div class="panel empty parallax" id="empty" data-speed="0.03" hidden>
+        <div class="empty__icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="round"><path d="M3 8l9-5 9 5v8l-9 5-9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>
+        </div>
+        <div class="empty__title">Sin tareas</div>
+        <div class="empty__text" id="emptyText">No tienes tareas todavía. ¡Crea la primera!</div>
+      </div>
+    </main>
+
+    <!-- ============ VISTA: SETTINGS ============ -->
+    <section class="view" data-view="settings">
+      <button class="icon-btn" id="backBtn" style="margin-bottom:2.4rem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square"><path d="M14 5l-7 7 7 7M7 12h13"/></svg>
+        <span>Volver</span>
+      </button>
+
+      <div class="section-head parallax" data-speed="0.02">
+        <h2>Ajustes</h2>
+        <p>Configura tu perfil y avatar.</p>
+      </div>
+
+      <div class="settings-grid">
+        <form class="panel form parallax" id="profileForm" data-speed="0.03" autocomplete="off">
+          <div class="form__group">
+            <label class="label" for="fNombre">Nombre</label>
+            <input class="field" id="fNombre" type="text" placeholder="Ej. Camila" maxlength="40">
+          </div>
+          <div class="form__group">
+            <label class="label" for="fApellidos">Apellidos</label>
+            <input class="field" id="fApellidos" type="text" placeholder="Ej. Rodríguez Pérez" maxlength="60">
+          </div>
+          <div class="form__group">
+            <label class="label" for="fAvatar">URL de imagen (avatar)</label>
+            <input class="field" id="fAvatar" type="url" placeholder="https://ejemplo.com/foto.jpg">
+            <p class="help">Pega un enlace a una imagen. Si lo dejas vacío se usarán tus iniciales.</p>
+          </div>
+          <div class="form__actions">
+            <button type="submit" class="btn btn--primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M5 4h12l3 3v13H5zM8 4v6h7M8 20v-6h8v6"/></svg>
+              Guardar perfil
+            </button>
+          </div>
+        </form>
+
+        <aside class="panel preview-card parallax" data-speed="0.045">
+          <div class="avatar-lg" id="pvAvatar"></div>
+          <div class="pv-name" id="pvName">Tu perfil</div>
+          <div class="pv-tag" id="pvTag">sin configurar</div>
+        </aside>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ TOASTS ============ -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- ============ MODAL ELIMINAR ============ -->
+  <div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h3 id="modalTitle">¿Eliminar tarea?</h3>
+      <p id="modalText"></p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" id="modalCancel">Cancelar</button>
+        <button class="btn btn--danger" id="modalConfirm">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

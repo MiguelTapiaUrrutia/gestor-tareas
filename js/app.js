@@ -19,7 +19,7 @@ let filter = localStorage.getItem(LS.filter) || 'todas';
 let sortBy = localStorage.getItem(LS.sort) || 'manual';
 let query = '';
 
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function uid() { return crypto.randomUUID(); }
 
 function render() { renderTasks({ tasks, filter, query, sortBy }); }
 

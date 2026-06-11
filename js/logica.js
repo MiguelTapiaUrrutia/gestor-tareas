@@ -47,6 +47,18 @@ export function isDuplicateProjectName(projects, nombre) {
   return projects.some(p => normalizeName(p.nombre) === n);
 }
 
+// Reordena dentro del array global SÓLO las tareas cuyos ids vienen en
+// orderIds (el orden visual tras arrastrar dentro de un proyecto). El
+// subconjunto se recoloca en las mismas posiciones globales que ya
+// ocupaba, así el orden manual de los demás proyectos no se altera.
+// Devuelve un array nuevo.
+export function reorderSubset(tasks, orderIds) {
+  const byId = new Map(tasks.map(t => [t.id, t]));
+  const afectados = new Set(orderIds);
+  const cola = orderIds.slice();
+  return tasks.map(t => (afectados.has(t.id) ? byId.get(cola.shift()) : t));
+}
+
 /* ---------- Comparadores de orden ---------- */
 
 // Vencimiento ascendente; las tareas sin fecha van al final.

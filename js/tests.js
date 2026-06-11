@@ -9,7 +9,7 @@
 
 import {
   visibleTasks, isOverdue, fmtDue, todayISO, cmpDue, cmpPriority, cmpCreated, cmpAlpha,
-  canDrag, reassignProject, isDuplicateProjectName,
+  canDrag, reassignProject, isDuplicateProjectName, reorderSubset,
 } from './logica.js';
 import { migrateTasks, ensureGeneral, GENERAL_ID } from './storage.js';
 
@@ -236,6 +236,22 @@ test('canDrag: true en proyecto específico con manual, filtro "todas" y sin bú
   assert(!canDrag('pendientes', '', 'manual', 'sence'));
   assert(!canDrag('todas', 'caf', 'manual', 'sence'));
   assert(!canDrag('todas', '', 'due', 'sence'));
+});
+
+test('reorderSubset: reordena el proyecto arrastrado sin mover las tareas de otros', () => {
+  const a1 = tarea({ projectId: 'p1' });
+  const b1 = tarea({ projectId: 'p2' });
+  const a2 = tarea({ projectId: 'p1' });
+  const b2 = tarea({ projectId: 'p2' });
+  // El usuario arrastra dentro de p1: ahora a2 va antes que a1.
+  const res = reorderSubset([a1, b1, a2, b2], [a2.id, a1.id]);
+  // p1 intercambiado en sus mismas posiciones; p2 intacto en las suyas.
+  assertEq(ids(res), [a2.id, b1.id, a1.id, b2.id]);
+});
+
+test('reorderSubset: con todos los ids equivale a la reordenación completa', () => {
+  const a = tarea(); const b = tarea(); const c = tarea();
+  assertEq(ids(reorderSubset([a, b, c], [c.id, a.id, b.id])), [c.id, a.id, b.id]);
 });
 
 test('nombre duplicado: detecta ignorando tildes, mayúsculas y espacios', () => {

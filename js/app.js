@@ -5,23 +5,35 @@
    logica.js/fechas.js y todo el DOM en ui.js.
    ============================================================ */
 
-import { LS, load, save, persist, loadTasks, GENERAL_ID } from './storage.js';
-import { canDrag } from './logica.js';
+import { LS, load, save, persist, loadTasks, loadProjects, persistProjects, GENERAL_ID } from './storage.js';
+import { canDrag, reassignProject, isDuplicateProjectName, reorderSubset } from './logica.js';
 import {
-  $, $$, renderTasks, startEdit, askDelete, initModal,
+  $, $$, renderTasks, startEdit, askConfirm, initModal,
+  renderProjects, renderProjectOptions, PALETA,
   toast, shake, applyTheme, showView, renderAvatars, fillForm, initParallax,
 } from './ui.js';
 
 /* ---------- Estado ---------- */
 let tasks = loadTasks(); // corre la migración v2 al cargar
+let projects = loadProjects();
 let profile = load(LS.profile, { nombre: '', apellidos: '', avatar: '' });
 let filter = localStorage.getItem(LS.filter) || 'todas';
 let sortBy = localStorage.getItem(LS.sort) || 'manual';
+let projectActivo = localStorage.getItem(LS.project) || 'todos';
 let query = '';
+let creatingProject = false;
 
 function uid() { return crypto.randomUUID(); }
 
-function render() { renderTasks({ tasks, filter, query, sortBy }); }
+function render() {
+  renderTasks({ tasks, filter, query, sortBy, projects, projectActivo });
+  renderProjects({ projects, tasks, projectActivo, creating: creatingProject });
+}
+
+// El select del creador sigue al proyecto activo: en "todos" cae a General.
+function syncProjectOptions() {
+  renderProjectOptions(projects, projectActivo === 'todos' ? GENERAL_ID : projectActivo);
+}
 
 /* ============================================================
    ACCIONES DE TAREAS
@@ -78,7 +90,10 @@ listEl.addEventListener('click', e => {
   const act = btn.dataset.act;
   const id = li.dataset.id;
   if (act === 'toggle') toggle(id);
-  else if (act === 'delete') askDelete(id, tasks);
+  else if (act === 'delete') {
+    const t = tasks.find(x => x.id === id);
+    askConfirm(`Vas a eliminar «${t ? t.text : ''}». Esta acción no se puede deshacer.`, () => removeTask(id));
+  }
   else if (act === 'edit-start') editTask(li);
 });
 listEl.addEventListener('keydown', e => {
@@ -92,7 +107,7 @@ listEl.addEventListener('keydown', e => {
 let dragLi = null;
 listEl.addEventListener('dragstart', e => {
   const handle = e.target.closest('.drag');
-  if (!handle || !canDrag(filter, query, sortBy)) { e.preventDefault(); return; }
+  if (!handle || !canDrag(filter, query, sortBy, projectActivo)) { e.preventDefault(); return; }
   dragLi = handle.closest('.task');
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragLi.dataset.id);
@@ -111,8 +126,10 @@ listEl.addEventListener('drop', e => e.preventDefault());
 listEl.addEventListener('dragend', () => {
   if (!dragLi) return;
   dragLi.classList.remove('dragging');
+  // El orden visual sólo contiene las tareas del proyecto activo:
+  // reordenar el subconjunto sin tocar el orden de los demás proyectos.
   const order = $$('.task', listEl).map(li => li.dataset.id);
-  tasks.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+  tasks = reorderSubset(tasks, order);
   persist(tasks);
   dragLi = null;
   render();
@@ -133,10 +150,11 @@ function getDragAfter(y) {
 $('#creatorForm').addEventListener('submit', e => {
   e.preventDefault();
   const input = $('#newTask');
-  addTask(input.value, $('#newPrio').value, $('#newDue').value);
+  addTask(input.value, $('#newPrio').value, $('#newDue').value, $('#newProj').value);
   input.value = '';
   $('#newDue').value = '';
   $('#newPrio').value = 'media';
+  syncProjectOptions();
   input.focus();
 });
 
@@ -178,8 +196,80 @@ function syncFilters() {
   });
 }
 
-/* ---------- Modal de eliminar ---------- */
-initModal(id => removeTask(id));
+/* ============================================================
+   PROYECTOS
+   ============================================================ */
+const projectsEl = $('#projects');
+
+function setActiveProject(id) {
+  projectActivo = id;
+  localStorage.setItem(LS.project, id);
+  syncProjectOptions();
+  render();
+}
+
+function addProject(nombre, color) {
+  nombre = nombre.trim();
+  if (!nombre) { shake($('#projName')); return; }
+  if (isDuplicateProjectName(projects, nombre)) {
+    shake($('#projName'));
+    toast('Ya existe un proyecto con ese nombre', 'info');
+    return;
+  }
+  projects = [...projects, { id: uid(), nombre, color: color || PALETA[0] }];
+  persistProjects(projects);
+  creatingProject = false;
+  syncProjectOptions();
+  render();
+  toast('Proyecto creado', 'check');
+}
+
+function removeProject(id) {
+  if (id === GENERAL_ID) return; // General no se puede eliminar
+  tasks = reassignProject(tasks, id, GENERAL_ID); // sus tareas NO se borran
+  persist(tasks);
+  projects = projects.filter(p => p.id !== id);
+  persistProjects(projects);
+  if (projectActivo === id) {
+    projectActivo = 'todos';
+    localStorage.setItem(LS.project, 'todos');
+  }
+  syncProjectOptions();
+  render();
+  toast('Proyecto eliminado: sus tareas pasaron a General', 'trash');
+}
+
+projectsEl.addEventListener('click', e => {
+  const del = e.target.closest('[data-del-project]');
+  if (del) {
+    const p = projects.find(x => x.id === del.dataset.delProject);
+    if (p) askConfirm(`Vas a eliminar el proyecto «${p.nombre}». Sus tareas pasarán a General.`, () => removeProject(p.id));
+    return;
+  }
+  if (e.target.closest('[data-new-project]')) {
+    creatingProject = true;
+    render();
+    return;
+  }
+  if (e.target.closest('[data-cancel-project]')) {
+    creatingProject = false;
+    render();
+    return;
+  }
+  const chip = e.target.closest('[data-project]');
+  if (chip) setActiveProject(chip.dataset.project);
+});
+projectsEl.addEventListener('submit', e => {
+  e.preventDefault();
+  const color = projectsEl.querySelector('input[name="projColor"]:checked');
+  addProject($('#projName').value, color ? color.value : PALETA[0]);
+});
+projectsEl.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && creatingProject) { creatingProject = false; render(); }
+});
+
+/* ---------- Modal de confirmación ---------- */
+initModal();
 
 /* ---------- Tema ---------- */
 // Una sola vía de lectura: load() (JSON + try/catch), simétrica con el
@@ -219,6 +309,7 @@ $('#profileForm').addEventListener('submit', e => {
 applyTheme(theme);
 syncFilters();
 renderAvatars(profile);
+syncProjectOptions();
 render();
 initParallax();
 

@@ -576,3 +576,53 @@ input[type="date"].field { cursor: text; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
   .parallax { transform: none !important; }
 }
+
+/* ============================================================
+   PROYECTOS — chips, mini-form de creación y badge por tarea
+   ============================================================ */
+.projects { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; margin-bottom: 1.6rem; }
+
+.p-dot {
+  width: 1.1rem; height: 1.1rem; border-radius: 50%;
+  border: .2rem solid var(--stroke); flex-shrink: 0;
+}
+
+.projchip { position: relative; display: inline-flex; }
+.projchip__del {
+  position: absolute; top: -.7rem; right: -.7rem; z-index: 1;
+  width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  border: .2rem solid var(--stroke); background: var(--surface); color: var(--text);
+  font-weight: 900; font-size: 1.4rem; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+  opacity: 0; transform: scale(.8);
+  transition: opacity .12s ease, transform .12s ease, background .12s ease;
+}
+/* Visible con ratón (hover) y con teclado (focus): sin hover también
+   aparece al enfocar/tocar el chip gracias a :focus-within. */
+.projchip:hover .projchip__del,
+.projchip:focus-within .projchip__del,
+.projchip__del:focus-visible { opacity: 1; transform: none; }
+.projchip__del:hover { background: #b23a1c; color: #fff; }
+.projchip__del:focus-visible { outline: .3rem solid var(--accent); outline-offset: .1rem; }
+
+.chip--add { border-style: dashed; background: transparent; }
+
+.projform {
+  display: inline-flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+  padding: .6rem .8rem;
+  border: var(--bd) dashed var(--stroke); border-radius: var(--radius);
+  background: var(--surface);
+}
+.projform .field--sm { width: 18rem; }
+.projform__colors { display: inline-flex; gap: .5rem; }
+.swatch { position: relative; cursor: pointer; display: inline-flex; }
+.swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.swatch span {
+  display: block; width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  border: .25rem solid var(--stroke);
+}
+.swatch input:checked + span,
+.swatch input:focus-visible + span { outline: .3rem solid var(--accent); outline-offset: .2rem; }
+
+.task__badge--proj { background: var(--bg); color: var(--text); }
+.task__badge--proj .p-dot { width: .9rem; height: .9rem; }

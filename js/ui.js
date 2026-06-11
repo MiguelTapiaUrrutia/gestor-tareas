@@ -6,7 +6,11 @@
 
 import { visibleTasks, isOverdue, canDrag } from './logica.js';
 import { fmtDate, fmtDue } from './fechas.js';
-import { LS, save } from './storage.js';
+import { LS, save, GENERAL_ID } from './storage.js';
+
+// Paleta fija de proyectos: contraste >= 3:1 (WCAG no-texto) verificado
+// contra --surface y --bg de ambos temas.
+export const PALETA = ['#D9480F', '#E03131', '#2B8A3E', '#1C7ED6', '#845EF7', '#D9407A'];
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -41,10 +45,10 @@ export function escapeHtml(s) {
 const listEl = $('#list');
 const emptyEl = $('#empty');
 
-export function renderTasks({ tasks, filter, query, sortBy }) {
-  const data = visibleTasks(tasks, filter, query, sortBy);
+export function renderTasks({ tasks, filter, query, sortBy, projects, projectActivo }) {
+  const data = visibleTasks(tasks, filter, query, sortBy, projectActivo);
   listEl.innerHTML = '';
-  listEl.classList.toggle('no-drag', !canDrag(filter, query, sortBy));
+  listEl.classList.toggle('no-drag', !canDrag(filter, query, sortBy, projectActivo));
 
   if (data.length === 0) {
     emptyEl.hidden = false;
@@ -56,7 +60,7 @@ export function renderTasks({ tasks, filter, query, sortBy }) {
     emptyEl.hidden = true;
   }
 
-  const drag = canDrag(filter, query, sortBy);
+  const drag = canDrag(filter, query, sortBy, projectActivo);
   for (const t of data) {
     const f = fmtDate(t.created);
     const prio = t.priority || 'media';
@@ -70,6 +74,13 @@ export function renderTasks({ tasks, filter, query, sortBy }) {
       ? `<span class="task__badge ${overdue ? 'task__badge--overdue' : 'task__badge--due'}"><span class="dot"></span>${overdue ? 'Venció ' : 'Vence '}${fmtDue(t.due)}</span>`
       : '';
 
+    // En "todos" cada tarea indica su proyecto; en la vista de un
+    // proyecto concreto el badge sería redundante y se omite.
+    const proj = projects.find(p => p.id === t.projectId);
+    const projBadge = (projectActivo === 'todos' && proj)
+      ? `<span class="task__badge task__badge--proj"><span class="p-dot" style="background:${proj.color}"></span>${escapeHtml(proj.nombre)}</span>`
+      : '';
+
     li.innerHTML = `
       <button class="drag" aria-label="Arrastrar para reordenar" draggable="${drag}" title="${drag ? 'Arrastra para reordenar' : 'Cambia a orden Manual para reordenar'}">${I.drag}</button>
       <button class="check" role="checkbox" aria-checked="${t.done}" aria-label="Marcar como completada" data-act="toggle">${I.check}</button>
@@ -79,6 +90,7 @@ export function renderTasks({ tasks, filter, query, sortBy }) {
           <span class="task__badge ${t.done ? 'task__badge--done' : 'task__badge--pend'}">${t.done ? 'Completada' : 'Pendiente'}</span>
           <span class="task__badge task__badge--prio-${prio}">${I.flag}${PRIO[prio]}</span>
           ${dueBadge}
+          ${projBadge}
         </div>
       </div>
       <div class="task__side">
@@ -90,7 +102,8 @@ export function renderTasks({ tasks, filter, query, sortBy }) {
       </div>`;
     listEl.appendChild(li);
   }
-  renderCounts(tasks);
+  // Los contadores de filtros hablan del proyecto activo, no del total.
+  renderCounts(projectActivo === 'todos' ? tasks : tasks.filter(t => t.projectId === projectActivo));
   applyParallax();
 }
 
@@ -102,6 +115,70 @@ function renderCounts(tasks) {
   $('#cPend').textContent = pend;
   $('#cDone').textContent = done;
   $('#counter').innerHTML = `<b>${pend}</b> pendiente${pend === 1 ? '' : 's'} · <b>${done}</b> hecha${done === 1 ? '' : 's'}`;
+}
+
+/* ============================================================
+   PROYECTOS — chips horizontales + select del creador
+   ============================================================ */
+const projectsEl = $('#projects');
+
+function chipProyecto(p, tasks, activo) {
+  const pend = tasks.filter(t => t.projectId === p.id && !t.done).length;
+  const del = p.id !== GENERAL_ID
+    ? `<button class="projchip__del" data-del-project="${p.id}" aria-label="Eliminar proyecto ${escapeHtml(p.nombre)}" title="Eliminar proyecto">×</button>`
+    : '';
+  return `
+    <span class="projchip">
+      <button class="chip${activo ? ' is-active' : ''}" data-project="${p.id}" aria-pressed="${activo}">
+        <span class="p-dot" style="background:${p.color}"></span>${escapeHtml(p.nombre)}
+        <span class="chip__count">${pend}</span>
+      </button>${del}
+    </span>`;
+}
+
+function formProyecto() {
+  const swatches = PALETA.map((c, i) =>
+    `<label class="swatch" title="${c}"><input type="radio" name="projColor" value="${c}"${i === 0 ? ' checked' : ''} aria-label="Color ${i + 1}"><span style="background:${c}"></span></label>`
+  ).join('');
+  return `
+    <form class="projform" autocomplete="off">
+      <input class="field field--sm" id="projName" maxlength="30" required placeholder="Nombre del proyecto" aria-label="Nombre del proyecto">
+      <div class="projform__colors" role="radiogroup" aria-label="Color del proyecto">${swatches}</div>
+      <button class="btn btn--primary btn--xs" type="submit">Crear</button>
+      <button class="btn btn--ghost btn--xs" type="button" data-cancel-project>Cancelar</button>
+    </form>`;
+}
+
+export function renderProjects({ projects, tasks, projectActivo, creating }) {
+  // Conserva lo tecleado si el form ya estaba abierto y se re-renderiza
+  const prevInput = $('#projName');
+  const prevName = prevInput ? prevInput.value : '';
+  const prevColor = projectsEl.querySelector('input[name="projColor"]:checked')?.value;
+  const yaCreando = Boolean(prevInput);
+
+  const pendTotal = tasks.filter(t => !t.done).length;
+  projectsEl.innerHTML = `
+    <button class="chip${projectActivo === 'todos' ? ' is-active' : ''}" data-project="todos" aria-pressed="${projectActivo === 'todos'}">
+      Todos <span class="chip__count">${pendTotal}</span>
+    </button>
+    ${projects.map(p => chipProyecto(p, tasks, projectActivo === p.id)).join('')}
+    ${creating ? formProyecto() : '<button class="chip chip--add" data-new-project>+ Proyecto</button>'}`;
+
+  if (creating) {
+    const input = $('#projName');
+    input.value = prevName;
+    if (prevColor) {
+      const radio = projectsEl.querySelector(`input[name="projColor"][value="${prevColor}"]`);
+      if (radio) radio.checked = true;
+    }
+    if (!yaCreando) input.focus();
+  }
+}
+
+export function renderProjectOptions(projects, selectedId) {
+  $('#newProj').innerHTML = projects
+    .map(p => `<option value="${p.id}"${p.id === selectedId ? ' selected' : ''}>${escapeHtml(p.nombre)}</option>`)
+    .join('');
 }
 
 /* ============================================================
@@ -153,20 +230,20 @@ export function startEdit(li, t, { onSave, onCancel }) {
    MODAL DE CONFIRMACIÓN (eliminar)
    ============================================================ */
 const modal = $('#modal');
-let pendingDelete = null;
+let pendingAction = null;
 
-export function askDelete(id, tasks) {
-  const t = tasks.find(x => x.id === id);
-  pendingDelete = id;
-  $('#modalText').textContent = `Vas a eliminar «${t ? t.text : ''}». Esta acción no se puede deshacer.`;
+// Modal de confirmación genérico: texto + acción a ejecutar si se confirma.
+export function askConfirm(text, action) {
+  pendingAction = action;
+  $('#modalText').textContent = text;
   modal.classList.add('is-open');
   $('#modalConfirm').focus();
 }
 
-function closeModal() { modal.classList.remove('is-open'); pendingDelete = null; }
+function closeModal() { modal.classList.remove('is-open'); pendingAction = null; }
 
-export function initModal(onConfirm) {
-  $('#modalConfirm').addEventListener('click', () => { if (pendingDelete) onConfirm(pendingDelete); closeModal(); });
+export function initModal() {
+  $('#modalConfirm').addEventListener('click', () => { const accion = pendingAction; closeModal(); if (accion) accion(); });
   $('#modalCancel').addEventListener('click', closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && modal.classList.contains('is-open')) closeModal(); });

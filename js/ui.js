@@ -220,12 +220,24 @@ function initials(profile) {
   return (a + b).toUpperCase();
 }
 
+// Pinta la imagen del avatar en un contenedor; si la URL falla,
+// lo sustituye por el fallback (iniciales o icono de usuario).
+function setAvatar(el, url, fallback) {
+  if (!url) { el.innerHTML = fallback; return; }
+  const img = document.createElement('img');
+  img.alt = 'Avatar';
+  img.addEventListener('error', () => { el.innerHTML = fallback; });
+  img.src = url;
+  el.innerHTML = '';
+  el.appendChild(img);
+}
+
 export function renderAvatars(profile) {
   const has = profile.avatar && profile.avatar.trim();
   const fallback = initials(profile) || I.user;
-  const img = has ? `<img src="${escapeHtml(profile.avatar)}" alt="Avatar" onerror="this.parentNode.innerHTML='${fallback.replace(/'/g, "\\'")}'">` : fallback;
-  $('#avatarBtn').innerHTML = img;
-  $('#pvAvatar').innerHTML = img;
+  const url = has ? profile.avatar : '';
+  setAvatar($('#avatarBtn'), url, fallback);
+  setAvatar($('#pvAvatar'), url, fallback);
   const full = [profile.nombre, profile.apellidos].filter(Boolean).join(' ') || 'Tu perfil';
   $('#pvName').textContent = full;
   $('#pvTag').textContent = profile.nombre ? '@' + (profile.nombre + (profile.apellidos ? '.' + profile.apellidos : '')).toLowerCase().replace(/\s+/g, '') : 'sin configurar';

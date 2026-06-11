@@ -1,40 +1,27 @@
 /* ============================================================
-   MIS TAREAS — Lógica pura (extraída de app.js en la Fase 1)
-
-   NOTA TEMPORAL: app.js es una IIFE clásica y todavía no puede
-   importar este módulo sin convertirse en ES Module (eso es la
-   Fase 2). Mientras tanto, estas funciones están DUPLICADAS:
-   la copia original sigue viviendo dentro de app.js y esta es
-   la versión pura y testeable. En la Fase 2, app.js pasará a
-   importar de aquí y la duplicación desaparece.
+   MIS TAREAS — Lógica pura (filtro, búsqueda, orden, vencidas)
 
    Todas las funciones son puras: reciben todo por parámetro,
    no tocan el DOM, ni localStorage, ni estado global.
+   Las utilidades de fecha viven en fechas.js y se re-exportan
+   aquí para que los tests de caracterización no cambien.
    ============================================================ */
 
+import { todayISO } from './fechas.js';
+
+export { fmtDue, todayISO } from './fechas.js';
+
 export const PRIO_RANK = { alta: 0, media: 1, baja: 2 };
-
-const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-/* ---------- Fechas ---------- */
-
-// 'YYYY-MM-DD' -> texto corto ('11 Jun'); '' -> ''
-export function fmtDue(due) {
-  if (!due) return '';
-  const [y, m, d] = due.split('-').map(Number);
-  return `${String(d).padStart(2, '0')} ${MESES[m - 1]}`;
-}
-
-// Fecha local en formato 'YYYY-MM-DD'. Acepta una fecha de
-// referencia por parámetro para poder testearla sin depender del reloj.
-export function todayISO(fecha = new Date()) {
-  return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-}
 
 // Una tarea está vencida si tiene fecha, no está completada y la
 // fecha es anterior a hoy. Si vence HOY, todavía NO está vencida.
 export function isOverdue(t, hoy = todayISO()) {
   return Boolean(t.due && !t.done && t.due < hoy);
+}
+
+// ¿Se puede arrastrar para reordenar? Sólo en modo manual sin filtros ni búsqueda.
+export function canDrag(filter, query, sortBy) {
+  return sortBy === 'manual' && filter === 'todas' && query.trim() === '';
 }
 
 /* ---------- Comparadores de orden ---------- */

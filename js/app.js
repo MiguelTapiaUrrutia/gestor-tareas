@@ -5,7 +5,7 @@
    logica.js/fechas.js y todo el DOM en ui.js.
    ============================================================ */
 
-import { LS, load, save, persist } from './storage.js';
+import { LS, load, save, persist, loadTasks, GENERAL_ID } from './storage.js';
 import { canDrag } from './logica.js';
 import {
   $, $$, renderTasks, startEdit, askDelete, initModal,
@@ -13,7 +13,7 @@ import {
 } from './ui.js';
 
 /* ---------- Estado ---------- */
-let tasks = load(LS.tasks, []);
+let tasks = loadTasks(); // corre la migración v2 al cargar
 let profile = load(LS.profile, { nombre: '', apellidos: '', avatar: '' });
 let filter = localStorage.getItem(LS.filter) || 'todas';
 let sortBy = localStorage.getItem(LS.sort) || 'manual';
@@ -26,10 +26,10 @@ function render() { renderTasks({ tasks, filter, query, sortBy }); }
 /* ============================================================
    ACCIONES DE TAREAS
    ============================================================ */
-function addTask(text, priority, due) {
+function addTask(text, priority, due, projectId) {
   text = text.trim();
   if (!text) { shake($('#newTask')); return; }
-  tasks.unshift({ id: uid(), text, done: false, created: Date.now(), priority: priority || 'media', due: due || '' });
+  tasks.unshift({ id: uid(), text, done: false, created: Date.now(), priority: priority || 'media', due: due || '', projectId: projectId || GENERAL_ID });
   persist(tasks);
   render();
   toast('Tarea creada', 'check');
@@ -231,10 +231,10 @@ if (tasks.length === 0 && !localStorage.getItem('mistareas.seeded')) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
   tasks = [
-    { id: uid(), text: 'Enviar la propuesta al cliente', done: false, created: now - 3600000, priority: 'alta', due: iso(1) },
-    { id: uid(), text: 'Revisar el tablero del proyecto', done: false, created: now - 86400000, priority: 'media', due: iso(-1) },
-    { id: uid(), text: 'Comprar café y pan para la semana', done: false, created: now - 7200000, priority: 'baja', due: '' },
-    { id: uid(), text: 'Agendar reunión de equipo', done: true, created: now - 172800000, priority: 'media', due: iso(-2) },
+    { id: uid(), text: 'Enviar la propuesta al cliente', done: false, created: now - 3600000, priority: 'alta', due: iso(1), projectId: GENERAL_ID },
+    { id: uid(), text: 'Revisar el tablero del proyecto', done: false, created: now - 86400000, priority: 'media', due: iso(-1), projectId: GENERAL_ID },
+    { id: uid(), text: 'Comprar café y pan para la semana', done: false, created: now - 7200000, priority: 'baja', due: '', projectId: GENERAL_ID },
+    { id: uid(), text: 'Agendar reunión de equipo', done: true, created: now - 172800000, priority: 'media', due: iso(-2), projectId: GENERAL_ID },
   ];
   persist(tasks);
   render();

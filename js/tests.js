@@ -8,6 +8,7 @@
    ============================================================ */
 
 import { visibleTasks, isOverdue, fmtDue, todayISO, cmpDue, cmpPriority, cmpCreated, cmpAlpha } from './logica.js';
+import { migrateTasks, ensureGeneral, GENERAL_ID } from './storage.js';
 
 /* ---------- Mini framework de aserciones ---------- */
 const resultados = [];
@@ -177,6 +178,42 @@ test('combinación: completadas + búsqueda + orden alfabético', () => {
   const b = tarea({ text: 'ánimo al equipo', done: true });
   const c = tarea({ text: 'Avena', done: false }); // fuera: pendiente
   assertEq(ids(visibleTasks([a, b, c], 'completadas', 'a', 'alpha')), [b.id, a.id]);
+});
+
+/* ============================================================
+   MIGRACIÓN v1 → v2 (proyectos)
+   ============================================================ */
+test('migración: una tarea sin projectId recibe "general"', () => {
+  const vieja = tarea(); delete vieja.projectId;
+  const [m] = migrateTasks([vieja]);
+  assertEq(m.projectId, GENERAL_ID);
+});
+
+test('migración: una tarea con projectId no se toca', () => {
+  const t = tarea({ projectId: 'curso-sence' });
+  const [m] = migrateTasks([t]);
+  assertEq(m.projectId, 'curso-sence');
+  assert(m === t, 'debería conservar el mismo objeto');
+});
+
+test('migración: es idempotente (correrla dos veces == una vez)', () => {
+  const vieja = tarea(); delete vieja.projectId;
+  const unaVez = migrateTasks([vieja, tarea({ projectId: 'x' })]);
+  const dosVeces = migrateTasks(unaVez);
+  assertEq(dosVeces, unaVez);
+});
+
+test('migración: no muta el array original', () => {
+  const vieja = tarea(); delete vieja.projectId;
+  const original = [vieja];
+  migrateTasks(original);
+  assert(!('projectId' in original[0]), 'la tarea original fue mutada');
+});
+
+test('ensureGeneral: crea "General" si falta y es idempotente', () => {
+  const conGeneral = ensureGeneral([]);
+  assertEq(conGeneral[0].id, GENERAL_ID);
+  assert(ensureGeneral(conGeneral) === conGeneral, 'no debería recrear el array si General ya existe');
 });
 
 /* ============================================================
